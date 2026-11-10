@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RunCard - Terminal del Operador y Tablero Andon</title>
+    <script src="https://cdn.tailwindcss.com">
+        // Inicialización directa sin login
+        window.onload = function() {
+            renderDashboard();
+        };
+
+</script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js">
+        // Inicialización directa sin login
+        window.onload = function() {
+            renderDashboard();
+        };
+
+</script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; color: #0f172a; }
+        .bg-runcard-dark { background-color: #002b49; }
+        .bg-runcard-header { background-color: #001f35; }
+        .bg-runcard-blue { background-color: #004b7c; }
+        .numpad-btn { background-color: #1f2937; color: white; font-weight: bold; font-size: 1.25rem; padding: 0.75rem; border-radius: 0.5rem; text-align: center; cursor: pointer; }
+        .numpad-btn:active { background-color: #374151; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <header class="bg-runcard-header text-white px-4 py-2 flex items-center justify-between text-xs border-b border-blue-900">
+        <div class="flex items-center space-x-6">
+            <div class="flex items-center gap-2 font-bold text-sm tracking-wider">
+                <div class="bg-blue-600 p-1 rounded"><i class="fa-solid fa-microchip"></i></div>
+                <span>RUNCARD DEMO</span>
+            </div>
+            <nav class="hidden md:flex space-x-4 text-gray-300">
+                <a href="#" class="text-white font-bold border-b-2 border-blue-400 pb-0.5">Terminal</a>
+                <a href="#" onclick="openReportModal()" class="hover:text-white text-emerald-400 font-bold"><i class="fa-solid fa-file-excel"></i> Reportes & Excel</a>
+                <a href="#" class="hover:text-white">Máquinas <i class="fa-solid fa-caret-down"></i></a>
+                <a href="#" class="hover:text-white">Configuración <i class="fa-solid fa-caret-down"></i></a>
+                <a href="#" class="hover:text-white">Admin <i class="fa-solid fa-caret-down"></i></a>
+            </nav>
+        </div>
+        <div class="flex items-center gap-4">
+            <span class="text-gray-300"><i class="fa-solid fa-user-circle"></i> schun</span>
+            <button onclick="logout()" class="text-red-400 hover:text-red-300 text-sm"><i class="fa-solid fa-right-from-bracket"></i></button>
+        </div>
+    </header>
+
+    <!-- BARRA SUB-HEADER TERMINAL OPERADOR -->
+    <div class="bg-runcard-dark text-white px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow">
+        <div class="flex items-center space-x-4">
+            <h1 class="font-bold text-sm flex items-center gap-2">
+                <i class="fa-solid fa-desktop text-blue-400"></i> Terminal del Operador
+            </h1>
+        </div>
+        <div class="flex items-center gap-2">
+            <input type="text" id="searchInput" placeholder="Buscar por Serie / Orden..." class="bg-white text-gray-800 text-xs px-3 py-1.5 rounded w-48 focus:outline-none">
+            <button onclick="renderDashboard()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1">
+                <i class="fa-solid fa-magnifying-glass"></i> Buscar
+            </button>
+            <button onclick="openModal()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1">
+                <i class="fa-solid fa-plus"></i> Nueva Orden
+            </button>
+        </div>
+    </div>
+
+    <!-- CUERPO PRINCIPAL CON PANEL LATERAL Y TARJETAS -->
+    <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
+
+        <!-- PANEL LATERAL IZQUIERDO: LINEAS Y ORDENES CON PRIORIDAD -->
+        <aside class="w-full md:w-64 bg-runcard-blue text-white p-3 space-y-4 flex-shrink-0">
+            <div>
+                <label class="block text-[10px] font-bold uppercase text-gray-300 mb-1">Línea de Fábrica</label>
+                <select class="w-full bg-white text-gray-900 rounded p-1.5 text-xs font-bold">
+                    <option>Línea 8 - Ensamble</option>
+                    <option>Línea 3 - Empaque</option>
+                </select>
+            </div>
+
+            <div>
+                <div class="flex justify-between items-center text-[11px] font-bold uppercase text-gray-300 mb-2 border-b border-blue-800 pb-1">
+                    <span>Orden de Trabajo</span>
+                    <span>Progreso</span>
+                </div>
+                <div id="sidebarList" class="space-y-1.5 max-h-[calc(100vh-220px)] overflow-y-auto pr-1 text-xs">
+                    <!-- Se llena dinámicamente -->
+                </div>
+            </div>
+        </aside>
+
+        <!-- AREA PRINCIPAL DEL DASHBOARD -->
+        <main class="flex-1 p-4 overflow-y-auto space-y-4">
+
+            <!-- TARJETAS DE MUESTRA METRICAS (KPIs ESTILO INTRARATIO) -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-blue-600 text-white p-3 rounded-lg flex items-center justify-between shadow">
+                    <div>
+                        <div class="text-[11px] font-bold uppercase tracking-wider opacity-90">Órdenes Abiertas</div>
+                        <div id="kpiOpenOrders" class="text-3xl font-black font-mono">247</div>
+                    </div>
+                    <i class="fa-solid fa-folder-open text-3xl opacity-40"></i>
+                </div>
+
+                <div class="bg-red-600 text-white p-3 rounded-lg flex items-center justify-between shadow">
+                    <div>
+                        <div class="text-[11px] font-bold uppercase tracking-wider opacity-90">Máquinas Fuera de Línea</div>
+                        <div class="text-3xl font-black font-mono">9</div>
+                    </div>
+                    <i class="fa-solid fa-circle-exclamation text-3xl opacity-40"></i>
+                </div>
+
+                <div class="bg-emerald-600 text-white p-3 rounded-lg flex items-center justify-between shadow">
+                    <div>
+                        <div class="text-[11px] font-bold uppercase tracking-wider opacity-90">Rollos Producidos Producidas</div>
+                        <div id="kpiGoodTotal" class="text-3xl font-black font-mono">1,960</div>
+                    </div>
+                    <i class="fa-solid fa-circle-check text-3xl opacity-40"></i>
+                </div>
+
+                <div class="bg-yellow-500 text-gray-900 p-3 rounded-lg flex items-center justify-between shadow">
+                    <div>
+                        <div class="text-[11px] font-bold uppercase tracking-wider opacity-90">Scrap Acumulado (Kg)</div>
+                        <div id="kpiScrapTotal" class="text-3xl font-black font-mono">5.9 kg</div>
+                    </div>
+                    <i class="fa-solid fa-dumpster text-3xl opacity-40"></i>
+                </div>
+            </div>
+
+            <!-- SECCIÓN: ÓRDENES FIJADAS (PINNED WORK ORDERS) -->
+            <div>
+                <h2 class="text-xs font-bold uppercase tracking-wider text-gray-600 mb-2 flex items-center gap-1">
+                    <i class="fa-solid fa-thumbtack text-blue-600"></i> Órdenes de Trabajo Fijadas
+                </h2>
+                <div id="pinnedCardsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- Tarjetas estilo RunCard fijadas -->
+                </div>
+            </div>
+
+            <!-- SECCIÓN: ÓRDENES PRIORIZADAS (PRIORITIZED WORK ORDERS) -->
+            <div>
+                <h2 class="text-xs font-bold uppercase tracking-wider text-gray-600 mb-2 flex items-center gap-1">
+                    <i class="fa-solid fa-list-ol text-blue-600"></i> Órdenes de Trabajo Priorizadas
+                </h2>
+                <div id="prioritizedCardsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- Tarjetas priorizadas -->
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- MODAL NUEVA CAPTURA DE ORDEN -->
+    <div id="recordModal" class="fixed inset-0 z-50 hidden bg-gray-950/80 p-4 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl border border-gray-300 p-6 max-w-md w-full space-y-4">
+            <div class="flex justify-between items-center border-b pb-2">
+                <h3 class="font-bold text-gray-900 text-sm">Registrar Producción / Scrap</h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form onsubmit="saveRecord(event)" class="space-y-3 text-xs">
+                <div>
+                    <label class="block font-bold text-gray-700 mb-1">Orden de Trabajo (Stock) (Ej. EWO-0500)</label>
+                    <input type="text" id="inputOrder" required class="w-full border rounded p-2 text-gray-900">
+                </div>
+                <div>
+                    <label class="block font-bold text-gray-700 mb-1">Operador / Trabajador</label>
+                    <input type="text" id="inputOperator" required class="w-full border rounded p-2 text-gray-900">
+                </div>
+                <div>
+                    <label class="block font-bold text-gray-700 mb-1">Material</label>
+                    <input type="text" id="inputModel" required class="w-full border rounded p-2 text-gray-900">
+                </div>
+                <div>
+                    <label class="block font-bold text-gray-700 mb-1">Fecha y Hora de Inicio</label>
+                    <input type="datetime-local" id="inputStartTime" required class="w-full border rounded p-2 text-gray-900">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block font-bold text-gray-700 mb-1">Rollos Producidos</label>
+                        <input type="number" id="inputGood" required class="w-full border rounded p-2 text-gray-900">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-gray-700 mb-1">Scrap (Kg)</label>
+                        <input type="number" step="0.1" id="inputScrap" required class="w-full border rounded p-2 text-gray-900">
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded font-bold">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded font-bold">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- MODAL DE REPORTES E HISTORIAL CON EXCEL -->
+    <div id="reportModal" class="fixed inset-0 z-50 hidden bg-slate-950/80 p-4 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl border border-gray-300 p-6 max-w-2xl w-full space-y-4 text-gray-900">
+            <div class="flex justify-between items-center border-b pb-2">
+                <h3 class="font-bold text-base flex items-center gap-2"><i class="fa-solid fa-file-excel text-emerald-600"></i> Reportes Históricos y Descarga Excel</h3>
+                <button onclick="closeReportModal()" class="text-gray-400 hover:text-gray-600 text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3 max-h-96 overflow-y-auto">
+                <p class="text-xs text-gray-600">Aquí se almacenan de forma consecutiva los reportes de producción por día. Puede descargar el registro detallado en formato compatible con Excel (CSV).</p>
+                <div id="reportModalContent" class="space-y-3">
+                    <!-- Contenido dinámico del reporte -->
+                </div>
+            </div>
+            <div class="flex justify-end pt-2 border-t">
+                <button onclick="closeReportModal()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded font-bold text-xs">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        
+        let currentPin = '';
+        
+        function pressNum(num) {
+            console.log("Número presionado:", num);
+            if (currentPin.length < 4) {
+                currentPin += num.toString();
+                renderPinDisplay();
+            }
+        }
+
+        function clearPin() {
+            currentPin = '';
+            renderPinDisplay();
+        }
+
+        function renderPinDisplay() {
+            const display = document.getElementById('pinDisplay');
+            if (display) {
+                display.innerText = currentPin ? '•'.repeat(currentPin.length) : '----';
+            }
+        }
+
+
+        function submitTvLogin() {
+            const role = document.getElementById('loginRole').value;
+            const errorDiv = document.getElementById('loginError');
+            
+            // Limpiamos espacios por seguridad
+            const pinTrimmed = currentPin.trim();
+
+            if ((role === 'operator' && pinTrimmed === '1234') || (role === 'admin' && pinTrimmed === '8888')) {
+                document.getElementById('loginOverlay').classList.add('hidden');
+                errorDiv.classList.add('hidden');
+                
+            } else {
+                errorDiv.classList.remove('hidden');
+                clearPin();
+            }
+        }
+
+        function logout() {
+            clearPin();
+            document.getElementById('loginOverlay').classList.remove('hidden');
+        }
+
+        function renderDashboard() {
+            renderSidebar();
+            renderPinnedCards();
+            renderPrioritizedCards();
+            updateKPIs();
+        }
+
+        function updateKPIs() {
+            const good = records.reduce((a, b) => a + b.good, 0);
+            const scrap = records.reduce((a, b) => a + b.scrapKg, 0);
+            document.getElementById('kpiGoodTotal').innerText = good.toLocaleString();
+            document.getElementById('kpiScrapTotal').innerText = scrap.toFixed(1) + ' kg';
+            document.getElementById('kpiOpenOrders').innerText = 240 + records.length;
+        }
+
+        function renderSidebar() {
+            const container = document.getElementById('sidebarList');
+            container.innerHTML = '';
+            records.forEach(r => {
+                const item = document.createElement('div');
+                item.className = "bg-blue-900/60 p-2 rounded border border-blue-800 flex justify-between items-center";
+                item.innerHTML = `
+                    <div>
+                        <div class="font-bold text-white">${r.id}</div>
+                        <div class="text-[9px] text-gray-300">Parte: ${r.part}</div>
+                    </div>
+                    <div class="w-16 bg-blue-950 rounded-full h-3 border border-blue-700 overflow-hidden relative">
+                        <div class="bg-yellow-500 h-full" style="width: ${r.progress}%"></div>
+                        <span class="absolute inset-0 text-[8px] font-bold text-center leading-3 text-white">${r.progress}%</span>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function renderPinnedCards() {
+            const container = document.getElementById('pinnedCardsGrid');
+            container.innerHTML = '';
+            records.forEach((r, idx) => {
+                const card = document.createElement('div');
+                card.className = "bg-white rounded-lg p-3 border border-gray-300 shadow-sm space-y-2 font-[Arial]";
+                card.innerHTML = `
+                    <div class="flex justify-between items-center border-b pb-2">
+                        <div>
+                            <div class="font-bold text-xs text-gray-900">${r.operator}</div>
+                            <div class="text-[10px] text-gray-500">Operador</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-bold text-xs text-gray-900">${r.id}</div>
+                            <div class="text-[10px] text-gray-500">${r.line} | Parte: ${r.part}</div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-1 text-[10px] text-center font-bold">
+                        <div class="bg-blue-50 text-blue-700 p-1 rounded">${r.inProgress}<br><span class="font-normal text-[8px]">En Proceso</span></div>
+                        <div class="bg-cyan-50 text-cyan-700 p-1 rounded">${r.inQueue}<br><span class="font-normal text-[8px]">En Cola</span></div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-1 text-[10px] text-center font-bold">
+                        <div class="bg-red-50 text-red-700 p-1 rounded">${r.good} pzs<br><span class="font-normal text-[8px]">Buenas</span></div>
+                        <div class="bg-gray-100 text-gray-700 p-1 rounded">${r.scrapKg} kg<br><span class="font-normal text-[8px]">Scrap</span></div>
+                    </div>
+                    <div class="pt-1 flex justify-between items-center border-t border-gray-100 mt-2">
+                        <button onclick="finishOrder(${idx})" class="text-[10px] bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 rounded font-bold shadow flex items-center gap-1"><i class="fa-solid fa-flag-checkered"></i> Finalizar Orden</button>
+                        <button onclick="editRecord(${idx})" class="text-[10px] bg-gray-100 hover:bg-gray-200 text-gray-700 px-2.5 py-1 rounded font-bold border"><i class="fa-solid fa-pen"></i> Editar</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderPrioritizedCards() {
+            const container = document.getElementById('prioritizedCardsGrid');
+            container.innerHTML = '';
+            records.forEach((r, idx) => {
+                const card = document.createElement('div');
+                card.className = "bg-white rounded-lg p-3 border border-gray-300 shadow-sm flex items-center justify-between";
+                card.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <div class="font-black text-sm text-blue-700">#${idx + 1}</div>
+                        <div>
+                            <div class="font-bold text-xs text-gray-900">${r.id}</div>
+                            <div class="text-[10px] text-gray-500">${r.operator} - ${r.part}</div>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-xs font-bold text-emerald-600">${r.good} pzs</div>
+                        <div class="text-[10px] font-bold text-red-600">${r.scrapKg} kg scrap</div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+                function openModal() { 
+            if (!document.getElementById('inputStartTime').value) {
+                const now = new Date();
+                now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                document.getElementById('inputStartTime').value = now.toISOString().slice(0,16);
+            }
+            document.getElementById('recordModal').classList.remove('hidden'); 
+        }
+        function closeModal() { document.getElementById('recordModal').classList.add('hidden'); }
+
+
+
+        function finishOrder(index) {
+            const r = records[index];
+            if (confirm(`¿Deseas finalizar la Orden de Trabajo ${r.id} del operador ${r.operator}? Se registrará la hora de término y se enviará a Reportes y Excel.`)) {
+                const now = new Date();
+                now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                const endTimeStr = now.toISOString().slice(0, 19).replace('T', ' ');
+
+                const completedRecord = {
+                    date: todayStr,
+                    id: r.id,
+                    line: r.line,
+                    part: r.part,
+                    operator: r.operator,
+                    good: r.good,
+                    scrapKg: r.scrapKg,
+                    startTime: r.startTime || "No registrada",
+                    endTime: endTimeStr,
+                    status: "Finalizada"
+                };
+
+                // Guardar en el histórico general para que aparezca en Reportes & Excel
+                let dayReport = historyLog.find(h => h.date === todayStr);
+                if (!dayReport) {
+                    dayReport = { date: todayStr, totalGood: 0, totalScrap: 0, ordersCount: 0, items: [] };
+                    historyLog.unshift(dayReport);
+                }
+                dayReport.items.push(completedRecord);
+                dayReport.totalGood += r.good;
+                dayReport.totalScrap += r.scrapKg;
+                dayReport.ordersCount = dayReport.items.length;
+
+                // Remover la orden activa de la tarjeta para que el operador empiece una nueva
+                records.splice(index, 1);
+                
+                // Si no quedan órdenes, agregamos una vacía lista para nueva orden
+                if (records.length === 0) {
+                    records.push({
+                        id: "EWO-NEW",
+                        line: "Línea 8",
+                        part: "Nuevo Material",
+                        priority: 1,
+                        inProgress: 1,
+                        inQueue: 0,
+                        operator: "Operador Turno",
+                        good: 0,
+                        scrapKg: 0.0
+                    });
+                }
+
+                saveToStorage();
+                
+                alert(`¡Orden ${r.id} finalizada con éxito! Enviada a Reportes y Excel.`);
+            }
+        }
+
+        let editingIndex = null;
+        function editRecord(index) {
+            editingIndex = index;
+            const r = records[index];
+            document.getElementById('inputOrder').value = r.id;
+            document.getElementById('inputOperator').value = r.operator;
+            document.getElementById('inputModel').value = r.part;
+            document.getElementById('inputGood').value = r.good;
+            document.getElementById('inputScrap').value = r.scrapKg;
+            document.getElementById('inputStartTime').value = r.startTime || new Date().toISOString().slice(0,16);
+            openModal();
+        }
+
+        // Modificamos saveRecord para que si editingIndex no es null, actualice en lugar de crear nuevo
+
+        function openReportModal() {
+            renderReportModalContent();
+            document.getElementById('reportModal').classList.remove('hidden');
+        }
+        function closeReportModal() {
+            document.getElementById('reportModal').classList.add('hidden');
+        }
+
+        function renderReportModalContent() {
+            const container = document.getElementById('reportModalContent');
+            if (historyLog.length === 0) {
+                container.innerHTML = `<p class="text-xs text-gray-400 italic">No hay reportes de órdenes finalizadas archivadas aún.</p>`;
+                return;
+            }
+            container.innerHTML = '';
+            historyLog.forEach((h, index) => {
+                let itemsHtml = '';
+                if (h.items && h.items.length > 0) {
+                    itemsHtml = `<div class="mt-2 border-t pt-2 space-y-1 max-h-40 overflow-y-auto">
+                        <div class="font-bold text-gray-700 text-[10px] uppercase">Detalle de Órdenes:</div>`;
+                    h.items.forEach(it => {
+                        itemsHtml += `<div class="bg-white p-1.5 rounded border text-[11px] flex justify-between items-center">
+                            <div>
+                                <span class="font-bold text-blue-900">OT: ${it.id}</span> | 
+                                <span class="text-gray-700">Op: ${it.operator}</span> | 
+                                <span class="text-gray-600">Material: ${it.part}</span>
+                            </div>
+                            <div class="text-right text-[10px] text-gray-500">
+                                Inicio: ${it.startTime} | Fin: ${it.endTime} | <span class="text-emerald-600 font-bold">${it.good} rollos</span> | <span class="text-red-600 font-bold">${it.scrapKg}kg</span>
+                            </div>
+                        </div>`;
+                    });
+                    itemsHtml += `</div>`;
+                }
+
+                const box = document.createElement('div');
+                box.className = "bg-gray-50 border border-gray-200 p-3 rounded-lg space-y-2 text-xs";
+                box.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="font-bold text-blue-900 text-sm"><i class="fa-solid fa-calendar-day"></i> Jornada / Fecha: ${h.date}</div>
+                            <div class="text-gray-600">Total Órdenes: ${h.ordersCount} | Rollos: <span class="text-emerald-700 font-bold">${h.totalGood}</span> | Scrap: <span class="text-red-600 font-bold">${h.totalScrap.toFixed(1)} kg</span></div>
+                        </div>
+                        <button onclick="downloadDayExcel(${index})" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded font-bold flex items-center gap-1 shadow">
+                            <i class="fa-solid fa-file-excel"></i> Descargar Excel
+                        </button>
+                    </div>
+                    ${itemsHtml}
+                `;
+                container.appendChild(box);
+            });
+        }
+
+        function downloadDayExcel(index) {
+            const h = historyLog[index];
+            let csv = `Reporte Detallado de Producción - Fecha: ${h.date}\n`;
+            csv += "Orden de Trabajo (Stock),Operador,Material,Hora de Inicio,Hora de Término,Rollos Producidos,Scrap (Kg)\n";
+            h.items.forEach(item => {
+                csv += `"${item.id}","${item.operator}","${item.part}","${item.startTime}","${item.endTime}",${item.good},${item.scrapKg}\n`;
+            });
+            const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            a.setAttribute('download`, `Reporte_Detallado_${h.date}.csv`);
+            a.click();
+        }
+
+                function saveRecord(e) {
+            e.preventDefault();
+            const orderId = document.getElementById('inputOrder').value;
+            const operatorName = document.getElementById('inputOperator').value;
+            const modelPart = document.getElementById('inputModel').value;
+            const goodParts = parseInt(document.getElementById('inputGood').value);
+            const scrapVal = parseFloat(document.getElementById('inputScrap').value);
+            const startTimeVal = document.getElementById('inputStartTime').value;
+
+            if (editingIndex !== null) {
+                records[editingIndex].id = orderId;
+                records[editingIndex].operator = operatorName;
+                records[editingIndex].part = modelPart;
+                records[editingIndex].good = goodParts;
+                records[editingIndex].scrapKg = scrapVal;
+                records[editingIndex].startTime = startTimeVal;
+                editingIndex = null;
+            } else {
+                records.unshift({
+                    id: orderId,
+                    line: "Línea 8",
+                    part: modelPart,
+                    priority: records.length + 1,
+                    progress: 100,
+                    inProgress: 1,
+                    inQueue: 0,
+                    operator: operatorName,
+                    good: goodParts,
+                    scrapKg: scrapVal,
+                    startTime: startTimeVal
+                });
+            }
+            closeModal();
+            renderDashboard();
+        } else {
+                records.unshift({
+                    id: orderId,
+                    line: "Línea 8",
+                    part: modelPart,
+                    priority: records.length + 1,
+                    progress: 100,
+                    inProgress: 1,
+                    inQueue: 0,
+                    operator: operatorName,
+                    good: goodParts,
+                    scrapKg: scrapVal,
+                    startTime: startTimeVal
+                });
+            }
+            closeModal();
+            
+        }
+
+    
+        // Inicialización directa sin login
+        window.onload = function() {
+            renderDashboard();
+        };
+
+</script>
+</body>
+</html>
